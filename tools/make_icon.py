@@ -1,41 +1,50 @@
 #!/usr/bin/env python3
-"""生成桌面图标（黄底黑「字」，单字高对比，给视力不好的老人用）和 leanback banner。"""
+"""生成扁平图标（黄底黑「大字幕」）和 leanback banner。
+
+这台电视的启动器按图片原始比例渲染，所以图标做成 2:1 的扁条，
+和「我的手机」「电视」这些自带图标视觉一致。
+"""
 import os
 from PIL import Image, ImageDraw, ImageFont
 
 FONT = "/usr/share/fonts/opentype/noto/NotoSansCJK-Black.ttc"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEXT = "大字幕"
+AMBER = (255, 179, 0, 255)
+INK = (26, 26, 26, 255)
 
 
-def make_icon(size=512):
-    W = size
-    img = Image.new("RGBA", (W, W), (0, 0, 0, 0))
+def _draw_text(d, w, h, size, fill):
+    f = ImageFont.truetype(FONT, size, index=2)
+    boxes = [d.textbbox((0, 0), c, font=f) for c in TEXT]
+    widths = [b[2] - b[0] for b in boxes]
+    total = sum(widths)
+    gap = (w * 0.86 - total) / (len(TEXT) - 1)
+    x = (w - (total + gap * (len(TEXT) - 1))) / 2
+    for c, b, cw in zip(TEXT, boxes, widths):
+        d.text((x - b[0], (h - (b[3] - b[1])) / 2 - b[1]), c, font=f, fill=fill)
+        x += cw + gap
+
+
+def make_flat(w, h):
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([0, 0, W - 1, W - 1], radius=int(W * 0.17), fill=(255, 179, 0, 255))
-
-    font = ImageFont.truetype(FONT, int(W * 0.86), index=2)
-    bb = d.textbbox((0, 0), "字", font=font)
-    tw, th = bb[2] - bb[0], bb[3] - bb[1]
-    d.text(((W - tw) / 2 - bb[0], (W - th) / 2 - bb[1] - W * 0.00),
-           "字", font=font, fill=(26, 26, 26, 255))
+    d.rounded_rectangle([0, 0, w - 1, h - 1], radius=int(h * 0.28), fill=AMBER)
+    _draw_text(d, w, h, int(h * 0.62), INK)
     return img
 
 
 def main():
-    base = make_icon(512)
-    base.save(os.path.join(ROOT, "docs/icon.png"))
-    for name, px in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
+    make_flat(512, 256).save(os.path.join(ROOT, "docs/icon.png"))
+    for name, h in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
         d = os.path.join(ROOT, f"res/mipmap-{name}")
         os.makedirs(d, exist_ok=True)
-        base.resize((px, px), Image.LANCZOS).save(os.path.join(d, "ic_launcher.png"))
+        make_flat(h * 2, h).save(os.path.join(d, "ic_launcher.png"))
 
     W, H = 320, 180
     b = Image.new("RGB", (W, H), (255, 179, 0))
     bd = ImageDraw.Draw(b)
-    ic = base.resize((120, 120), Image.LANCZOS)
-    b.paste(ic, (24, 30), ic)
-    f = ImageFont.truetype(FONT, 62, index=2)
-    bd.text((160, 90), "大字幕", font=f, fill=(26, 26, 26), anchor="lm")
+    _draw_text(bd, W, H, 92, INK)
     os.makedirs(os.path.join(ROOT, "res/drawable"), exist_ok=True)
     b.save(os.path.join(ROOT, "res/drawable/banner.png"))
     print("icons generated")
