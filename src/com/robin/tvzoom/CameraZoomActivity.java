@@ -464,24 +464,39 @@ public class CameraZoomActivity extends Activity
     private void openCamera() {
         try {
             CameraManager cm = (CameraManager) getSystemService(CAMERA_SERVICE);
+            // 相机 ID 每次开机可能变：采集卡支持 720x576/720x480 这类广播分辨率，
+            // 内置摄像头只有 16:9 的几档。按这个特征认卡，不认 ID。
             String id = null;
+            String fallback = null;
             for (String cid : cm.getCameraIdList()) {
                 android.hardware.camera2.CameraCharacteristics cc = cm.getCameraCharacteristics(cid);
-                Integer facing = cc.get(android.hardware.camera2.CameraCharacteristics.LENS_FACING);
-                if (facing != null
-                        && facing == android.hardware.camera2.CameraCharacteristics.LENS_FACING_EXTERNAL) {
+                android.hardware.camera2.params.StreamConfigurationMap map =
+                        cc.get(android.hardware.camera2.CameraCharacteristics
+                                .SCALER_STREAM_CONFIGURATION_MAP);
+                if (map == null) continue;
+                android.util.Size[] sizes = map.getOutputSizes(android.graphics.ImageFormat.YUV_420_888);
+                if (sizes == null) continue;
+                boolean pal = false;
+                boolean qhd = false;
+                for (android.util.Size sz : sizes) {
+                    if (sz.getWidth() == 720
+                            && (sz.getHeight() == 576 || sz.getHeight() == 480)) {
+                        pal = true;
+                    }
+                    if (sz.getWidth() >= 2560) qhd = true;
+                }
+                Log.i(TAG, "camera " + cid + " pal=" + pal + " qhd=" + qhd + " sizes=" + sizes.length);
+                if (pal) {
                     id = cid;
-                    characteristics = cc;
+                    break;
                 }
+                if (!qhd && fallback == null) fallback = cid;
             }
+            if (id == null) id = fallback;
             if (id == null) {
-                String[] ids = cm.getCameraIdList();
-                if (ids.length < 2) {
-                    Log.e(TAG, "no external camera");
-                    cameraMissing = true;
-                    return;
-                }
-                id = ids[ids.length - 1];
+                Log.e(TAG, "no capture card found");
+                cameraMissing = true;
+                return;
             }
             characteristics = cm.getCameraCharacteristics(id);
             Log.i(TAG, "open camera " + id);
