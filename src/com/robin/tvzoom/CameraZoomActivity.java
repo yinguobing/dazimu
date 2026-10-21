@@ -265,6 +265,7 @@ public class CameraZoomActivity extends Activity
         long now = System.currentTimeMillis();
         if (now - lastReopenAt < 3000) return;
         lastReopenAt = now;
+        Log.i(TAG, "reopenCamera (retry)");
         Log.i(TAG, "reopen camera");
         stopAudio();
         try {
@@ -492,7 +493,6 @@ public class CameraZoomActivity extends Activity
                     c.close();
                     camera = null;
                     session = null;
-                    lastReopenAt = 0;
                     reopenCamera();
                 }
 
@@ -502,7 +502,6 @@ public class CameraZoomActivity extends Activity
                     c.close();
                     camera = null;
                     session = null;
-                    lastReopenAt = 0;
                     reopenCamera();
                 }
             }, main);
@@ -664,6 +663,14 @@ public class CameraZoomActivity extends Activity
     protected void onDestroy() {
         main.removeCallbacks(statusTicker);
         try {
+            if (session != null) session.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            if (camera != null) camera.close();
+        } catch (Exception ignored) {
+        }
+        try {
             unregisterReceiver(setReceiver);
         } catch (Exception ignored) {
         }
@@ -674,8 +681,17 @@ public class CameraZoomActivity extends Activity
     protected void onPause() {
         super.onPause();
         stopAudio();
-        if (session != null) session.close();
-        if (camera != null) camera.close();
+        try {
+            if (session != null) session.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            if (camera != null) camera.close();
+        } catch (Exception ignored) {
+        }
+        session = null;
+        camera = null;
+        lastFrameAt = 0;
         glView.onPause();
     }
 
