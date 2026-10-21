@@ -242,7 +242,11 @@ public class CameraZoomActivity extends Activity
         public void run() {
             long now = System.currentTimeMillis();
             String msg = null;
-            if (cameraMissing) {
+            boolean flowing = lastFrameAt > 0 && now - lastFrameAt < 2500;
+            if (flowing) {
+                cameraMissing = false;
+                msg = null;
+            } else if (cameraMissing) {
                 msg = "未检测到采集卡，请检查 USB 连接";
             } else if (lastFrameAt == 0) {
                 if (now - startedAt > 6000) msg = "未检测到信号，请检查采集卡和机顶盒";
@@ -445,6 +449,7 @@ public class CameraZoomActivity extends Activity
     @Override
     public void onFrameAvailable(SurfaceTexture st) {
         lastFrameAt = System.currentTimeMillis();
+        cameraMissing = false;
         frameCount++;
         long now = System.currentTimeMillis();
         if (fpsTs == 0) fpsTs = now;
@@ -518,6 +523,7 @@ public class CameraZoomActivity extends Activity
                         @Override
                         public void onConfigured(CameraCaptureSession s) {
                             session = s;
+                            cameraMissing = false;
                             try {
                                 CaptureRequest.Builder b =
                                         camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
@@ -698,6 +704,9 @@ public class CameraZoomActivity extends Activity
     @Override
     protected void onResume() {
         super.onResume();
+        startedAt = System.currentTimeMillis();
+        lastFrameAt = 0;
+        cameraMissing = false;
         glView.onResume();
     }
 }
