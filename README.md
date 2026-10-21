@@ -46,6 +46,24 @@
 
 > 换到 USB 3.0 口可以到 60fps；换 60Hz 源可以消除抽帧顿挫。
 
+## 桌面焦点背景
+
+华为启动器认一个私有 meta-data（从「云视听全民K歌」的 APK 里挖出来的）：
+
+```xml
+<application ...>
+    <meta-data android:name="huawei_hd_background"
+               android:resource="@drawable/hd_bg" />
+</application>
+```
+
+- 必须放在 **application** 层，放 activity 里不生效；
+- 图是 **1920×1080**，启动器会整屏铺；
+- 启动器会在左上角叠加应用名，所以左侧三分之一留暗、别放内容；
+- 改完要重装 App（启动器有缓存）。
+
+`res/drawable-nodpi/hd_bg.jpg` 就是当前这张：左边暗红 + 淡「字」，右边是实拍画面。
+
 ## 构建
 
 ```bash
