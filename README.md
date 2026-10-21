@@ -1,106 +1,91 @@
-# 大字幕（tv-zoom）— 智慧屏字幕放大
+# 大字幕
 
-华为 Vision 智慧屏 3（QINL-360A，Android 12）上的字幕放大应用。
-**不用录屏**：画面来自 USB 采集卡，App 自己合成，所以放大条可以压在字幕上，不存在套娃。
+给华为智慧屏做的「电视字幕放大器」：把机顶盒画面底部的字幕裁出来、放大 3 倍，再贴回屏幕底部。
 
-![效果](demo-camera.png)
+起因很简单——家里老人看不清电视剧的字幕，电视自带的设置和无障碍里都没有能调字幕大小的东西。
 
-## 链路
+![效果](docs/demo-camera.png)
+
+## 它怎么工作
 
 ```
-机顶盒 ──HDMI──> 采集卡(MS2130) ──USB──> 电视
-                                          ├─ 摄像头接口取帧
-                                          ├─ USB 音频取声
-                                          └─ GPU 合成：整幅画面 + 底部放大条
+机顶盒 ──HDMI──> USB 采集卡 ──USB──> 智慧屏
+                                      ├─ Camera2 取帧（外置 UVC 摄像头）
+                                      ├─ USB 音频取声（采集卡自带 UAC）
+                                      └─ OpenGL 合成：整幅画面 + 底部放大条
 ```
 
-- 视频：Camera2 打开外置摄像头（采集卡），SurfaceTexture → OpenGL 画两遍
-- 音频：AudioRecord 从 `USB-Audio - Hagibis` 录 PCM，AudioTrack 放出来
-- 机顶盒音频要设成**解码**（PCM 立体声），**不要透传**（采集卡不解码）
+关键点：**画面来自采集卡，不是录屏**。所以放大条可以压在字幕区上，不存在「录屏录到自己」的递归问题。
+
+## 硬件
+
+| 件 | 型号 | 说明 |
+|---|---|---|
+| 电视 | 华为 Vision 智慧屏 3（QINL-360A） | Android 12 兼容层，HarmonyOS 3.1 |
+| 采集卡 | MS2130（Hagibis） | 插 USB 3.0 口，UVC + UAC |
+| 机顶盒 | 运营商 IPTV | 音频设「解码 / PCM 立体声」，不要透传 |
 
 ## 遥控器
 
 | 键 | 作用 |
 |---|---|
-| ← / → | 倍数 1.0×–3.0×，8 档 |
-| ↑ / ↓ | 取景框上下，每档 2%，0–100（数字 = 离画面**底部**的距离） |
+| ← / → | 放大倍数 1.0×–3.0× |
+| ↑ / ↓ | 取景框上下（每档 2%，数字是离画面底部的距离） |
 | OK | 放大条开关 |
-| 菜单键 | 条高 8/10/12/16/20/24/30% |
+| 菜单键 | 条高 8%–30% |
 
-调整时顶部弹 2 秒提示，参数存 SharedPreferences，下次打开沿用。
+调整时顶部弹 2 秒提示，参数存 SharedPreferences。
 
-## 当前默认值
+## 构建
 
+无 Gradle，一条脚本：
+
+```bash
+./build.sh     # aapt2 + javac + d8 + apksigner → build/tvzoom.apk
 ```
-倍数 3.0×   条高 20%   取景框 10%
+
+需要：Android build-tools 34、platform-31 的 android.jar、JDK 17。
+
+## 安装
+
+```bash
+adb install tvzoom.apk
+# 或者 U 盘：全部应用 → 媒体中心 → U 盘 → 文件 → 安装
 ```
+
+首次打开要允许**相机**和**麦克风**两个权限。
 
 ## 实测约束
 
 | 项 | 值 |
 |---|---|
-| 采集卡 | MS2130，插在 USB 2.0 口 → **1080p30 封顶** |
-| 源 | 机顶盒 50Hz，不支持改刷新率 → 50→30 抽帧，轻微规律性顿挫 |
-| 音频延迟 | USB 采集+回放约 100ms，实测口型同步可接受 |
-| 画面 | 1920×1080，30fps 稳定 |
+| 分辨率 | 1920×1080 |
+| 帧率 | 30fps（外置摄像头 HAL 上限，源是 50Hz 时会有轻微规律顿挫） |
+| 音频延迟 | USB 采集回放约 100ms，实测口型可接受 |
+| 机顶盒音频 | 必须「解码」，透传会没声音 |
 
-> 换到 USB 3.0 口可以到 60fps；换 60Hz 源可以消除抽帧顿挫。
+## 踩过的坑
 
-## 桌面焦点背景
+1. **Camera ID 每次开机都会变**：华为 HAL 把内置摄像头和采集卡都报成 `LENS_FACING_FRONT`，ID 顺序也不固定。现在按能力识别——采集卡支持 720×576/720×480 这类广播分辨率，内置摄像头只有 16:9 的几档。
+2. **开机时 USB 枚举可能漏**：卡在总线上，但相机服务没建节点。App 每 3 秒重试一次，物理拔插一次即可恢复。
+3. **焦点背景**：华为启动器认 `huawei_hd_background` 这个私有 meta-data（1920×1080），必须放在 `<application>` 层、改完要换资源名或重启才会刷新。
+4. **图标会消失**：卸载重装时启动器会把图标从桌面行移除，覆盖安装不会。
 
-华为启动器认一个私有 meta-data（从「云视听全民K歌」的 APK 里挖出来的）：
+## 目录
 
-```xml
-<application ...>
-    <meta-data android:name="huawei_hd_background"
-               android:resource="@drawable/hd_bg" />
-</application>
+```
+src/com/robin/tvzoom/
+├── CameraZoomActivity.java   采集 + GL 合成 + 音频 + 遥控器交互
+└── Config.java               参数持久化
+tools/make_icon.py            生成图标和 banner
+docs/install.md               上门安装指南
+build.sh                      构建脚本
 ```
 
-- 必须放在 **application** 层，放 activity 里不生效；
-- 图是 **1920×1080**，启动器会整屏铺；
-- 启动器会在左上角叠加应用名，所以左侧三分之一留暗、别放内容；
-- 改完要重装 App（启动器有缓存）。
+## 关于「放大条」这个设计
 
-`res/drawable-nodpi/hd_bg.jpg` 就是当前这张：左边暗红 + 淡「字」，右边是实拍画面。
+最早试过 MediaProjection 录屏 + 悬浮窗叠加，被几何关系卡死：放大条不能压住取景框，否则会录到自己；压不住就取不到字幕。绕不过去，最后换成「自己拿帧、自己合成」，问题才消失。
 
-## 构建
+## License
 
-```bash
-./build.sh     # aapt2 + javac + d8 + apksigner，产出 build/tvzoom.apk
-```
-
-依赖：`~/dl-android/bt34/android-14`、`~/dl-android/p31/android-12/android.jar`、`~/command-line-tools/jbr`。
-
-## 安装
-
-```bash
-adb connect <电视IP>:5555
-adb install -r build/tvzoom.apk
-adb shell appops set com.robin.tvzoom SYSTEM_ALERT_WINDOW allow   # 旧方案遗留，可不做
-```
-
-桌面图标「字幕放大」直接进放大画面。
-
-## 调试
-
-```bash
-# 热调参数（不用重启）
-adb shell am broadcast -a com.robin.tvzoom.SET --ei zoom 300 --ei band 20 --ei cy 10
-
-# 看日志
-adb logcat -s TVZoom:*
-```
-
-## 关键坑
-
-1. **USB 2.0**：MS2130 在 USB2 上只有 30fps，HAL 报的帧率范围就是 `[10,30]`，请求 60 无效。
-2. **镜像**：采集卡把自己报成前置摄像头，预览是镜像的。GL 里 `uFlip=1, vFlip=-1` 才正过来（180° 旋转 + 一次水平翻转）。
-3. **取景框越界**：超出画面会被 `CLAMP_TO_EDGE` 拉伸成糊片，必须把取景框整体夹在画面内。
-4. **取景框方向**：`cy` 是"离画面底部的距离"，数值越大取景越高。
-5. **进程冻结**：电视的 `PG_ash` 会冻结后台进程；本方案是前台 Activity，不受影响。
-
-## 历史方案（已弃用）
-
-早期试过 MediaProjection 录屏 + 悬浮窗，受限于「录屏会录到自己」，放大条不能压住取景框，
-定位被几何关系卡死。代码仍在 `LensService` / `AutoHideService` / `MainActivity` 里，未启用。
+MIT
