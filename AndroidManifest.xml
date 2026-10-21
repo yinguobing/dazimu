@@ -30,6 +30,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:banner="@drawable/banner"
+            android:previewImage="@drawable/preview"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
             <intent-filter>
