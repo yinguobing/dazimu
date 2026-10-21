@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">字幕放大</string>
+    <string name="auto_hide_desc">看电视时显示放大的字幕条；打开菜单或其他应用时自动让开。</string>
+</resources>
