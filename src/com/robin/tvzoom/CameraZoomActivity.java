@@ -101,7 +101,8 @@ public class CameraZoomActivity extends Activity
     private TextView status;
     private volatile long lastFrameAt;
     private long startedAt;
-    private boolean cameraMissing;
+    private volatile boolean cameraMissing;
+    private long lastReopenAt;
     private boolean bandOn = true;
     private final BroadcastReceiver setReceiver = new BroadcastReceiver() {
         @Override
@@ -246,7 +247,8 @@ public class CameraZoomActivity extends Activity
             } else if (lastFrameAt == 0) {
                 if (now - startedAt > 6000) msg = "未检测到信号，请检查采集卡和机顶盒";
             } else if (now - lastFrameAt > 2500) {
-                msg = "信号中断，请检查机顶盒";
+                msg = "信号中断，正在重连…";
+                reopenCamera();
             }
             if (msg == null) {
                 status.setVisibility(android.view.View.GONE);
@@ -257,6 +259,31 @@ public class CameraZoomActivity extends Activity
             main.postDelayed(this, 1000);
         }
     };
+
+    /** 采集卡换口 / 掉线后相机设备会失效，这里重新打开。 */
+    private void reopenCamera() {
+        long now = System.currentTimeMillis();
+        if (now - lastReopenAt < 3000) return;
+        lastReopenAt = now;
+        Log.i(TAG, "reopen camera");
+        stopAudio();
+        try {
+            if (session != null) {
+                session.close();
+                session = null;
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (camera != null) {
+                camera.close();
+                camera = null;
+            }
+        } catch (Exception ignored) {
+        }
+        cameraMissing = false;
+        openCamera();
+    }
 
     private void applyCfg() {
         zoom = cfg.zoom();
@@ -461,13 +488,22 @@ public class CameraZoomActivity extends Activity
 
                 @Override
                 public void onDisconnected(CameraDevice c) {
+                    Log.w(TAG, "camera disconnected");
                     c.close();
+                    camera = null;
+                    session = null;
+                    lastReopenAt = 0;
+                    reopenCamera();
                 }
 
                 @Override
                 public void onError(CameraDevice c, int error) {
                     Log.e(TAG, "camera error " + error);
                     c.close();
+                    camera = null;
+                    session = null;
+                    lastReopenAt = 0;
+                    reopenCamera();
                 }
             }, main);
         } catch (Exception e) {
@@ -496,10 +532,17 @@ public class CameraZoomActivity extends Activity
                                         for (android.util.Range<Integer> r : ranges) sb.append(r).append(" ");
                                     }
                                     Log.i(TAG, "fps ranges: " + sb);
-                                    if (wantFps > 0) {
+                                    // 默认挑支持的最高帧率（USB3 上采集卡会给 50fps）
+                                    int target = wantFps;
+                                    if (target <= 0 && ranges != null) {
+                                        for (android.util.Range<Integer> r : ranges) {
+                                            if (r.getUpper() > target) target = r.getUpper();
+                                        }
+                                    }
+                                    if (target > 0) {
                                         b.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                                                new android.util.Range<>(wantFps, wantFps));
-                                        Log.i(TAG, "request fps " + wantFps);
+                                                new android.util.Range<>(target, target));
+                                        Log.i(TAG, "request fps " + target);
                                     }
                                 }
                                 s.setRepeatingRequest(b.build(), null, main);
