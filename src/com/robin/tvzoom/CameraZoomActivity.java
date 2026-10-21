@@ -98,6 +98,10 @@ public class CameraZoomActivity extends Activity
 
     private Config cfg;
     private TextView hint;
+    private TextView status;
+    private volatile long lastFrameAt;
+    private long startedAt;
+    private boolean cameraMissing;
     private boolean bandOn = true;
     private final BroadcastReceiver setReceiver = new BroadcastReceiver() {
         @Override
@@ -163,7 +167,20 @@ public class CameraZoomActivity extends Activity
         hlp.topMargin = 30;
         root.addView(hint, hlp);
 
+        status = new TextView(this);
+        status.setTextColor(Color.WHITE);
+        status.setTextSize(34);
+        status.setPadding(48, 28, 48, 28);
+        status.setBackgroundColor(Color.argb(200, 0, 0, 0));
+        status.setVisibility(android.view.View.GONE);
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        slp.gravity = Gravity.CENTER;
+        root.addView(status, slp);
+
         setContentView(root);
+        startedAt = System.currentTimeMillis();
+        main.post(statusTicker);
 
         IntentFilter f = new IntentFilter("com.robin.tvzoom.SET");
         registerReceiver(setReceiver, f);
@@ -218,6 +235,28 @@ public class CameraZoomActivity extends Activity
         }
         return super.dispatchKeyEvent(e);
     }
+
+    private final Runnable statusTicker = new Runnable() {
+        @Override
+        public void run() {
+            long now = System.currentTimeMillis();
+            String msg = null;
+            if (cameraMissing) {
+                msg = "未检测到采集卡，请检查 USB 连接";
+            } else if (lastFrameAt == 0) {
+                if (now - startedAt > 6000) msg = "未检测到信号，请检查采集卡和机顶盒";
+            } else if (now - lastFrameAt > 2500) {
+                msg = "信号中断，请检查机顶盒";
+            }
+            if (msg == null) {
+                status.setVisibility(android.view.View.GONE);
+            } else {
+                status.setText(msg);
+                status.setVisibility(android.view.View.VISIBLE);
+            }
+            main.postDelayed(this, 1000);
+        }
+    };
 
     private void applyCfg() {
         zoom = cfg.zoom();
@@ -377,6 +416,7 @@ public class CameraZoomActivity extends Activity
 
     @Override
     public void onFrameAvailable(SurfaceTexture st) {
+        lastFrameAt = System.currentTimeMillis();
         frameCount++;
         long now = System.currentTimeMillis();
         if (fpsTs == 0) fpsTs = now;
@@ -403,6 +443,11 @@ public class CameraZoomActivity extends Activity
             }
             if (id == null) {
                 String[] ids = cm.getCameraIdList();
+                if (ids.length < 2) {
+                    Log.e(TAG, "no external camera");
+                    cameraMissing = true;
+                    return;
+                }
                 id = ids[ids.length - 1];
             }
             characteristics = cm.getCameraCharacteristics(id);
@@ -427,6 +472,7 @@ public class CameraZoomActivity extends Activity
             }, main);
         } catch (Exception e) {
             Log.e(TAG, "openCamera failed", e);
+            cameraMissing = true;
         }
     }
 
@@ -573,6 +619,7 @@ public class CameraZoomActivity extends Activity
 
     @Override
     protected void onDestroy() {
+        main.removeCallbacks(statusTicker);
         try {
             unregisterReceiver(setReceiver);
         } catch (Exception ignored) {
