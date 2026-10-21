@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.robin.tvzoom"
-    android:versionCode="5"
-    android:versionName="0.5">
+    android:versionCode="6"
+    android:versionName="0.6">
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -21,7 +21,7 @@
         android:theme="@android:style/Theme.Translucent.NoTitleBar"
         android:allowBackup="false">
 
-        <meta-data android:name="huawei_hd_background" android:resource="@drawable/hd_bg5" />
+        <meta-data android:name="huawei_hd_background" android:resource="@drawable/hd_bg8" />
 
         <activity
             android:name=".MainActivity"
