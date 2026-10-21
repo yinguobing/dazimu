@@ -247,7 +247,8 @@ public class CameraZoomActivity extends Activity
                 cameraMissing = false;
                 msg = null;
             } else if (cameraMissing) {
-                msg = "未检测到采集卡，请检查 USB 连接";
+                msg = "未检测到采集卡，正在重试…";
+                reopenCamera();
             } else if (lastFrameAt == 0) {
                 if (now - startedAt > 6000) msg = "未检测到信号，请检查采集卡和机顶盒";
             } else if (now - lastFrameAt > 2500) {
