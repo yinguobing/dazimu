@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- MS2130 采集卡：MACROSILICON / Hagibis -->
+    <usb-device vendor-id="13407" product-id="8496" />
+    <!-- 兜底：任意 UVC 摄像头（class 14 / subclass 2） -->
+    <usb-device class="14" subclass="2" />
+</resources>
