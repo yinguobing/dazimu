@@ -92,6 +92,11 @@ adb install tvzoom.apk
 
 也想过 OCR 识别文字再重新渲染成高清字幕。放弃的原因很实际：识别会引入延迟、错字、和画面对不齐，而老人看的是一直播下去的剧，字幕晚半秒就没用了。裁切放大不完美，但它零延迟、零错误，而且不需要联网。
 
+后来还查过电视内部：HDMI 输入其实是标准 V4L2 设备（`/dev/video21`，`ndp-hdmi`），
+原始帧确实存在且可读，但被 SELinux 的 `camera_device` 标签挡在外面；拿它需要 root，
+而 root 又被固件签名和验证启动锁死。完整结论和复现命令见
+[docs/hdmi-internals.md](docs/hdmi-internals.md)。
+
 ## 目录
 
 ```
@@ -101,6 +106,7 @@ src/com/robin/tvzoom/
 tools/make_icon.py            生成图标和 banner
 tools/make_before_after.py    把两帧截图拼成前后对比图
 docs/install.md               上门安装指南
+docs/hdmi-internals.md        为什么最终用采集卡：HDMI 内部访问研究（V4L2 / 签名 / 投屏）
 build.sh                      构建脚本
 ```
 
