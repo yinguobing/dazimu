@@ -206,11 +206,11 @@ public class CameraZoomActivity extends Activity
                     applyCfg();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_UP:
-                    cfg.cy = Config.clamp(cfg.cy + 2, 0, 100);   // ↑ 往画面高处
+                    cfg.cy = Config.clamp(cfg.cy - 2, 0, 100);   // ↑ 字幕往上走
                     applyCfg();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
-                    cfg.cy = Config.clamp(cfg.cy - 2, 0, 100);   // ↓ 往画面低处
+                    cfg.cy = Config.clamp(cfg.cy + 2, 0, 100);   // ↓ 字幕往下走
                     applyCfg();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
