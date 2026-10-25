@@ -343,7 +343,8 @@ public class CameraZoomActivity extends Activity
 
     private void reopenCamera() {
         long now = System.currentTimeMillis();
-        // 一直没卡的时候拉长重试间隔，别把主线程和 CPU 拖死
+        // 一直没卡的时候拉长重试间隔；超过上限就不再空转，等用户重新进前台
+        if (reopenAttempts > 40) return;
         long gate = reopenAttempts > 20 ? 10000 : 3000;
         if (now - lastReopenAt < gate) return;
         reopenAttempts++;
@@ -418,12 +419,14 @@ public class CameraZoomActivity extends Activity
         texture.setDefaultBufferSize(bufW, bufH);
         texture.setOnFrameAvailableListener(this);
         cameraSurface = new Surface(texture);
-        main.post(new Runnable() {
-            @Override
-            public void run() {
-                openCamera();
-            }
-        });
+        if (camHandler != null) {
+            camHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    openCamera();
+                }
+            });
+        }
     }
 
     @Override
@@ -783,17 +786,24 @@ public class CameraZoomActivity extends Activity
     @Override
     protected void onPause() {
         super.onPause();
-        stopAudio();
-        try {
-            if (session != null) session.close();
-        } catch (Exception ignored) {
-        }
-        try {
-            if (camera != null) camera.close();
-        } catch (Exception ignored) {
-        }
-        session = null;
+        // 后台不再跑状态轮询：没有采集卡时它会一直重开相机，把进程卡死在 D 状态
+        main.removeCallbacks(statusTicker);
+        final CameraDevice c = camera;
+        final CameraCaptureSession s = session;
         camera = null;
+        session = null;
+        // 关相机/会话/音频都放到相机线程，别阻塞主线程
+        if (camHandler != null) {
+            camHandler.post(new Runnable() {
+                @Override public void run() {
+                    stopAudio();
+                    try { if (s != null) s.close(); } catch (Exception ignored) { }
+                    try { if (c != null) c.close(); } catch (Exception ignored) { }
+                }
+            });
+        } else {
+            stopAudio();
+        }
         lastFrameAt = 0;
         glView.onPause();
     }
@@ -804,6 +814,9 @@ public class CameraZoomActivity extends Activity
         startedAt = System.currentTimeMillis();
         lastFrameAt = 0;
         cameraMissing = false;
+        reopenAttempts = 0;          // 回到前台重新给机会
+        main.removeCallbacks(statusTicker);
+        main.post(statusTicker);
         glView.onResume();
     }
 }

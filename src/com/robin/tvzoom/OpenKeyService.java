@@ -51,6 +51,10 @@ public class OpenKeyService extends AccessibilityService {
     }
 
     @Override protected boolean onKeyEvent(KeyEvent event) {
+        // 诊断用：确认每次按键到底被投递了几次
+        Log.i(TAG, "onKey " + KeyEvent.keyCodeToString(event.getKeyCode())
+                + " act=" + event.getAction() + " t=" + event.getEventTime()
+                + " r=" + event.getRepeatCount());
         if (event.getKeyCode() != TRIGGER_KEY) return false;
         if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
             launch();
