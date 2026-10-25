@@ -84,6 +84,15 @@ adb shell settings put secure accessibility_enabled 1
 
 > 万一没开无障碍，还有一层兜底：`adb shell appops set com.robin.tvzoom SYSTEM_ALERT_WINDOW allow`
 
+### 重启后的行为（实测）
+
+- 无障碍服务**会**在开机后自动重新绑定，USB 按键和开机自启恢复可用
+- 曾经出现过一次「重启后服务没绑上、按键失效」：开机广播里在主线程探测相机（冷启动可能卡几秒），
+  和系统绑定无障碍服务抢主线程。现在 `BootReceiver` 改成 `goAsync()` + 后台线程 + 延迟 2.5 秒，
+  给系统留出绑定窗口
+- 电视每次重启后会关闭 HDC 调试，需要重新在开发者选项里打开（和 App 无关）
+
+
 - 注意：`input keyevent KEYCODE_F3` 模拟**测不出来**，安卓的按键过滤只认真实硬件事件，必须实物按
 
 

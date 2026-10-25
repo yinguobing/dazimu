@@ -11,8 +11,27 @@ public class BootReceiver extends BroadcastReceiver {
 
     @Override public void onReceive(Context c, Intent intent) {
         if (intent == null) return;
-        String a = intent.getAction();
+        final String a = intent.getAction();
         if (a == null) return;
+
+        // 探测相机是慢操作（冷启动时可能几秒），挪到后台线程并稍等，
+        // 避免开机瞬间和系统的无障碍服务绑定抢主线程。
+        final PendingResult pr = goAsync();
+        final Intent in = intent;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    Thread.sleep(2500);
+                    handle(c, a, in);
+                } catch (InterruptedException ignored) {
+                } finally {
+                    pr.finish();
+                }
+            }
+        }, "boot-probe").start();
+    }
+
+    private void handle(Context c, String a, Intent intent) {
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(a)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(a)) {
