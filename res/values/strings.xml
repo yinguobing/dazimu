@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">大字幕</string>
     <string name="auto_hide_desc">看电视时显示放大的字幕条；打开菜单或其他应用时自动让开。</string>
+    <string name="open_key_desc">让 USB 按键（F3）一键打开大字幕。只监听这一个键，不看屏幕内容、不记录输入。</string>
 </resources>

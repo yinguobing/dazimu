@@ -49,7 +49,30 @@ APK 位置：`~/developer/tv-zoom/build/tvzoom.apk`
 | ↑ / ↓ | 取景框上下（每档 2%） |
 | ← / → | 倍数（2.0×–5.0×，默认 3.0×） |
 | 菜单键 | 条高（8%–30%） |
-| OK | 放大条开关（关闭时右下角有常驻提醒） |
+| USB 按键（F3） | 一键打开大字幕，任意界面都有效 |
+
+### USB 一键启动按键
+
+老人在机顶盒界面想看大字幕时，不用再摸遥控器找 App：插一个 USB 按键，按一下就进来。
+
+- 按键型号：普通可编程 HID 按键（VID 0x0483 / PID 0x5750），**默认发 F3**，不用改配置
+- 实现：App 内建一个无障碍服务 `OpenKeyService`，只监听 F3，其他键全部放行
+- 一次性开启，重启后仍有效：
+
+```
+设置 → 无障碍（辅助功能）→ 已下载的服务 → 大字幕 → 打开
+```
+
+或者用 adb：
+
+```bash
+adb shell settings put secure enabled_accessibility_services com.robin.tvzoom/com.robin.tvzoom.OpenKeyService
+adb shell settings put secure accessibility_enabled 1
+```
+
+- 验证：`dumpsys accessibility | grep -A3 tvzoom` 应看到 `FLAG_REQUEST_FILTER_KEY_EVENTS`
+- 注意：`input keyevent KEYCODE_F3` 模拟**测不出来**，安卓的按键过滤只认真实硬件事件，必须实物按
+
 
 **交互原则**（改功能时请遵守）
 
