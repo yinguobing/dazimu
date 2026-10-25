@@ -162,7 +162,6 @@ public class CameraZoomActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try { startForegroundService(new Intent(this, MediaButtonService.class)); } catch (Throwable ignored) { }
         camThread = new android.os.HandlerThread("cam");
         camThread.start();
         camHandler = new android.os.Handler(camThread.getLooper());
