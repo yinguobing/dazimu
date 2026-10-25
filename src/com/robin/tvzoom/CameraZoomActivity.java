@@ -162,6 +162,7 @@ public class CameraZoomActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try { startForegroundService(new Intent(this, MediaButtonService.class)); } catch (Throwable ignored) { }
         camThread = new android.os.HandlerThread("cam");
         camThread.start();
         camHandler = new android.os.Handler(camThread.getLooper());
@@ -278,6 +279,10 @@ public class CameraZoomActivity extends Activity
                 case KeyEvent.KEYCODE_DPAD_DOWN:
                     cfg.cy = Config.clamp(cfg.cy + 2, 0, 100);   // ↓ 字幕往下走
                     applyCfg();
+                    return true;
+                case KeyEvent.KEYCODE_F3:
+                    // USB 按键：已经在大字幕里，给个大号提示确认收到
+                    showToast("大字幕", 0xffffffff);
                     return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
                 case KeyEvent.KEYCODE_ENTER:

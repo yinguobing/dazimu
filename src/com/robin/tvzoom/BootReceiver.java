@@ -32,6 +32,7 @@ public class BootReceiver extends BroadcastReceiver {
     }
 
     private void handle(Context c, String a, Intent intent) {
+        startMediaKeyService(c);
 
         if (Intent.ACTION_BOOT_COMPLETED.equals(a)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(a)) {
@@ -50,6 +51,16 @@ public class BootReceiver extends BroadcastReceiver {
         }
         if (Autostart.ACTION_TEST.equals(a)) {
             Autostart.start(c);
+        }
+    }
+
+    /** 媒体键监听服务：开机就起，接住 USB 按键的播放/暂停。 */
+    private static void startMediaKeyService(Context c) {
+        try {
+            Intent i = new Intent(c, MediaButtonService.class);
+            if (android.os.Build.VERSION.SDK_INT >= 26) c.startForegroundService(i);
+            else c.startService(i);
+        } catch (Throwable ignored) {
         }
     }
 }
