@@ -98,6 +98,8 @@ public class CameraZoomActivity extends Activity
 
     private Config cfg;
     private TextView hint;
+    private TextView toast;
+    private TextView offMark;
     private TextView status;
     private volatile long lastFrameAt;
     private long startedAt;
@@ -123,6 +125,27 @@ public class CameraZoomActivity extends Activity
             if (intent.hasExtra("band")) cfg.bandPct = Config.clamp(intent.getIntExtra("band", 12), 8, 30);
             if (intent.hasExtra("cy")) cfg.cy = Config.clamp(intent.getIntExtra("cy", 86), 0, 100);
             applyCfg();
+        }
+    };
+
+    /** 屏幕中央的大号提示：老人不看小字，参数变化必须给个明显的反馈。 */
+    private void showZoomToast() {
+        showToast(Config.ZOOMS[cfg.zoomIndex] + "×", 0xffffffff);
+    }
+
+    private void showToast(String text, int color) {
+        if (toast == null) return;
+        toast.setText(text);
+        toast.setTextColor(color);
+        toast.setVisibility(android.view.View.VISIBLE);
+        main.removeCallbacks(hideToast);
+        main.postDelayed(hideToast, 1200);
+    }
+
+    private final Runnable hideToast = new Runnable() {
+        @Override
+        public void run() {
+            if (toast != null) toast.setVisibility(android.view.View.GONE);
         }
     };
 
@@ -179,6 +202,33 @@ public class CameraZoomActivity extends Activity
         slp.gravity = Gravity.CENTER;
         root.addView(status, slp);
 
+        offMark = new TextView(this);
+        offMark.setText("大字幕已关闭 · 按 OK 开启");
+        offMark.setTextColor(0xffffffff);
+        offMark.setTextSize(24);
+        offMark.setPadding(28, 12, 28, 12);
+        offMark.setBackgroundColor(Color.argb(150, 0, 0, 0));
+        offMark.setVisibility(android.view.View.GONE);
+        FrameLayout.LayoutParams olp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        olp.gravity = Gravity.BOTTOM | Gravity.END;
+        olp.bottomMargin = 28;
+        olp.rightMargin = 28;
+        root.addView(offMark, olp);
+
+        toast = new TextView(this);
+        toast.setTextColor(Color.WHITE);
+        toast.setTextSize(72);
+        toast.setTypeface(null, android.graphics.Typeface.BOLD);
+        toast.setPadding(56, 28, 56, 28);
+        toast.setBackgroundColor(Color.argb(170, 0, 0, 0));
+        toast.setVisibility(android.view.View.GONE);
+        FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        tlp.gravity = Gravity.CENTER;
+        tlp.topMargin = 240;
+        root.addView(toast, tlp);
+
         setContentView(root);
         startedAt = System.currentTimeMillis();
         main.post(statusTicker);
@@ -198,12 +248,22 @@ public class CameraZoomActivity extends Activity
         if (e.getAction() == KeyEvent.ACTION_DOWN) {
             switch (e.getKeyCode()) {
                 case KeyEvent.KEYCODE_DPAD_LEFT:
-                    cfg.zoomIndex = Config.clamp(cfg.zoomIndex - 1, 0, Config.ZOOMS.length - 1);
-                    applyCfg();
+                    if (cfg.zoomIndex <= 0) {
+                        showToast("已是最小 " + Config.ZOOMS[0] + "×", 0xffd03030);
+                    } else {
+                        cfg.zoomIndex--;
+                        applyCfg();
+                        showZoomToast();
+                    }
                     return true;
                 case KeyEvent.KEYCODE_DPAD_RIGHT:
-                    cfg.zoomIndex = Config.clamp(cfg.zoomIndex + 1, 0, Config.ZOOMS.length - 1);
-                    applyCfg();
+                    if (cfg.zoomIndex >= Config.ZOOMS.length - 1) {
+                        showToast("已是最大 " + Config.ZOOMS[Config.ZOOMS.length - 1] + "×", 0xffd03030);
+                    } else {
+                        cfg.zoomIndex++;
+                        applyCfg();
+                        showZoomToast();
+                    }
                     return true;
                 case KeyEvent.KEYCODE_DPAD_UP:
                     cfg.cy = Config.clamp(cfg.cy - 2, 0, 100);   // ↑ 字幕往上走
@@ -217,6 +277,7 @@ public class CameraZoomActivity extends Activity
                 case KeyEvent.KEYCODE_ENTER:
                     cfg.visible = !cfg.visible;
                     applyCfg();
+                    showToast(cfg.visible ? "大字幕 开" : "大字幕 关", 0xffffffff);
                     return true;
                 case KeyEvent.KEYCODE_MENU:
                     int[] bands = {8, 10, 12, 16, 20, 24, 30};
@@ -229,6 +290,7 @@ public class CameraZoomActivity extends Activity
                     }
                     cfg.bandPct = next;
                     applyCfg();
+                    showToast("条高 " + cfg.bandPct + "%", 0xffffffff);
                     return true;
                 default:
                     break;
@@ -297,8 +359,11 @@ public class CameraZoomActivity extends Activity
         cy = cfg.cy / 100f;
         bandOn = cfg.visible;
         cfg.save(this);
-        hint.setText("倍数 " + Config.ZOOMS[cfg.zoomIndex] + "×   条高 " + cfg.bandPct
-                + "%   取景框 " + cfg.cy + "%   " + (bandOn ? "开" : "关"));
+        hint.setText("倍率 " + Config.ZOOMS[cfg.zoomIndex] + "×   条高 " + cfg.bandPct + "%   "
+                + (bandOn ? "开" : "关"));
+        if (offMark != null) {
+            offMark.setVisibility(bandOn ? android.view.View.GONE : android.view.View.VISIBLE);
+        }
         hint.setVisibility(android.view.View.VISIBLE);
         main.removeCallbacks(hideHint);
         main.postDelayed(hideHint, 2000);
