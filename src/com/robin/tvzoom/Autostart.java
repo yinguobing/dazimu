@@ -75,6 +75,12 @@ final class Autostart {
     }
 
     static void start(Context c) {
+        // 优先级：无障碍服务在的话由它起（系统绑定的服务不受后台启动限制）
+        if (OpenKeyService.isReady()) {
+            Log.i(TAG, "autostart: start via accessibility service");
+            OpenKeyService.trigger();
+            return;
+        }
         try {
             Intent i = new Intent(c, CameraZoomActivity.class);
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);

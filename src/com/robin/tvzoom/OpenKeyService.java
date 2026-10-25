@@ -19,14 +19,32 @@ public class OpenKeyService extends AccessibilityService {
     private static final int TRIGGER_KEY = KeyEvent.KEYCODE_F3;
 
     private long lastLaunchAt;
+    private static OpenKeyService instance;
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
+        instance = this;
         Log.i(TAG, "OpenKeyService connected, trigger=KEYCODE_F3");
     }
 
     @Override public void onAccessibilityEvent(AccessibilityEvent event) {
         // 不需要读界面
+    }
+
+    @Override public boolean onUnbind(Intent intent) {
+        instance = null;
+        return super.onUnbind(intent);
+    }
+
+    /** 无障碍服务是否就绪。服务由系统绑定，借它起界面可以绕过后台启动限制。 */
+    static boolean isReady() {
+        return instance != null;
+    }
+
+    /** 由服务发起启动：App 有系统绑定的服务，后台启动界面不会被拦。 */
+    static void trigger() {
+        OpenKeyService s = instance;
+        if (s != null) s.launch();
     }
 
     @Override public void onInterrupt() {

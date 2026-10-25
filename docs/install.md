@@ -71,6 +71,19 @@ adb shell settings put secure accessibility_enabled 1
 ```
 
 - 验证：`dumpsys accessibility | grep -A3 tvzoom` 应看到 `FLAG_REQUEST_FILTER_KEY_EVENTS`
+
+### 开机自启
+
+开机后等采集卡枚举出来就自动进入大字幕，**不需要人操作**。
+
+- 收到 `BOOT_COMPLETED` 后每 8 秒探一次采集卡，最多 20 次（约 160 秒），探到才开
+- 插拔采集卡（`USB_DEVICE_ATTACHED`）也会立刻触发
+- 启动动作**由无障碍服务发起**：无障碍服务被系统绑定，不受 Android 的后台启动限制
+  （实测：在未授予 `SYSTEM_ALERT_WINDOW` 的情况下也能正常拉起）
+- 所以「开机自启」和「USB 一键启动」依赖同一个开关——无障碍开着，两个都工作
+
+> 万一没开无障碍，还有一层兜底：`adb shell appops set com.robin.tvzoom SYSTEM_ALERT_WINDOW allow`
+
 - 注意：`input keyevent KEYCODE_F3` 模拟**测不出来**，安卓的按键过滤只认真实硬件事件，必须实物按
 
 
