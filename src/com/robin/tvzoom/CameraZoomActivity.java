@@ -100,6 +100,9 @@ public class CameraZoomActivity extends Activity
     private TextView hint;
     private TextView toast;
     private TextView offMark;
+    private android.os.HandlerThread camThread;
+    private android.os.Handler camHandler;
+    private int reopenAttempts;
     private TextView status;
     private volatile long lastFrameAt;
     private long startedAt;
@@ -159,6 +162,9 @@ public class CameraZoomActivity extends Activity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        camThread = new android.os.HandlerThread("cam");
+        camThread.start();
+        camHandler = new android.os.Handler(camThread.getLooper());
         cfg = Config.load(this);
         zoom = cfg.zoom();
         bandPct = cfg.bandPct / 100f;
@@ -310,12 +316,12 @@ public class CameraZoomActivity extends Activity
                 msg = null;
             } else if (cameraMissing) {
                 msg = "未检测到采集卡，正在重试…";
-                reopenCamera();
+                postReopen();
             } else if (lastFrameAt == 0) {
                 if (now - startedAt > 6000) msg = "未检测到信号，请检查采集卡和机顶盒";
             } else if (now - lastFrameAt > 2500) {
                 msg = "信号中断，正在重连…";
-                reopenCamera();
+                postReopen();
             }
             if (msg == null) {
                 status.setVisibility(android.view.View.GONE);
@@ -328,9 +334,19 @@ public class CameraZoomActivity extends Activity
     };
 
     /** 采集卡换口 / 掉线后相机设备会失效，这里重新打开。 */
+    private void postReopen() {
+        if (camHandler == null) { reopenCamera(); return; }
+        camHandler.post(new Runnable() {
+            @Override public void run() { reopenCamera(); }
+        });
+    }
+
     private void reopenCamera() {
         long now = System.currentTimeMillis();
-        if (now - lastReopenAt < 3000) return;
+        // 一直没卡的时候拉长重试间隔，别把主线程和 CPU 拖死
+        long gate = reopenAttempts > 20 ? 10000 : 3000;
+        if (now - lastReopenAt < gate) return;
+        reopenAttempts++;
         lastReopenAt = now;
         Log.i(TAG, "reopenCamera (retry)");
         Log.i(TAG, "reopen camera");
@@ -579,7 +595,7 @@ public class CameraZoomActivity extends Activity
                     c.close();
                     camera = null;
                     session = null;
-                    reopenCamera();
+                    postReopen();
                 }
 
                 @Override
@@ -588,7 +604,7 @@ public class CameraZoomActivity extends Activity
                     c.close();
                     camera = null;
                     session = null;
-                    reopenCamera();
+                    postReopen();
                 }
             }, main);
         } catch (Exception e) {

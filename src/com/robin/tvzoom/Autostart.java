@@ -75,11 +75,14 @@ final class Autostart {
     }
 
     static void start(Context c) {
-        // 优先级：无障碍服务在的话由它起（系统绑定的服务不受后台启动限制）
-        if (OpenKeyService.isReady()) {
-            Log.i(TAG, "autostart: start via accessibility service");
-            OpenKeyService.trigger();
+        // 交给 :keys 进程起（那里有系统绑定的无障碍服务，优先级高、不受后台限制）
+        try {
+            Intent b = new Intent(c, LaunchReceiver.class);
+            b.setAction(LaunchReceiver.ACTION_LAUNCH);
+            c.sendBroadcast(b);
+            Log.i(TAG, "autostart: dispatch to :keys process");
             return;
+        } catch (Throwable ignored) {
         }
         try {
             Intent i = new Intent(c, CameraZoomActivity.class);
