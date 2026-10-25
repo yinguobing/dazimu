@@ -91,6 +91,10 @@ adb shell settings put secure accessibility_enabled 1
   和系统绑定无障碍服务抢主线程。现在 `BootReceiver` 改成 `goAsync()` + 后台线程 + 延迟 2.5 秒，
   给系统留出绑定窗口
 - 电视每次重启后会关闭 HDC 调试，需要重新在开发者选项里打开（和 App 无关）
+- 遇到过一次「遥控器按一下跳好几个选项」：当时 USB 键盘的输入节点刚从 `event6` 变成 `event0`
+  （重新枚举），系统里残留了异常状态。重启后自己就好了，和无障碍服务无关
+- 万一再遇到输入异常，先试：拔掉 USB 按键、重启电视；不用改 App
+
 
 
 - 注意：`input keyevent KEYCODE_F3` 模拟**测不出来**，安卓的按键过滤只认真实硬件事件，必须实物按
